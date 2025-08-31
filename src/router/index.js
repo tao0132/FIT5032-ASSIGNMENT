@@ -7,7 +7,7 @@ import CoachProfileView from '../views/CoachProfileView.vue';
 import UserProfileView from '../views/UserProfileView.vue';
 
 const routes = [
-  { path: '/', name: 'home', component: HomeView },
+  { path: '/', name: 'home', component: LoginView},
   { path: '/login', name: 'login', component: LoginView },
   { path: '/booking', name: 'booking', component: BookingView },
   { path: '/coaches', name: 'coach-list', component: CoachListView },
