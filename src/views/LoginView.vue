@@ -1,24 +1,25 @@
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '../stores/auth.js';
 
-// Reactive variables for email and password
+// Get the auth store and router instances
+const authStore = useAuthStore();
+const router = useRouter();
+
+// Form state
 const email = ref('');
 const password = ref('');
+const error = ref(null); // To store login error messages
 
-// Handle login logic
-function handleLogin() {
-  // This is the second type of validation: JavaScript logic check.
-  if (password.value.length < 8) {
-    alert('Password must be at least 8 characters long.');
-    return; // Stop the function if validation fails
+async function handleLogin() {
+  error.value = null; // Reset error before login attempt
+  try {
+    await authStore.login(email.value, password.value);
+    router.push('/profile'); // Redirect to profile on successful login
+  } catch (err) {
+    error.value = err.message; // Display error message on failure
   }
-
-  // Check if data binding is successful
-  console.log('User attempting login:');
-  console.log('Email:', email.value);
-  console.log('Password:', password.value);
-  
-  alert(`Login successful!`);
 }
 </script>
 
@@ -26,35 +27,30 @@ function handleLogin() {
   <div class="login-container">
     <h2>Login</h2>
     <form @submit.prevent="handleLogin">
+      <div v-if="error" class="alert alert-danger">{{ error }}</div>
+      
       <div class="form-group">
         <label for="email">Email address</label>
-        <input 
-          type="email" 
-          id="email"
-          v-model="email"
-          class="form-control" 
-          required 
-        />
+        <input type="email" id="email" v-model="email" class="form-control" required />
       </div>
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input 
-          type="password" 
-          id="password"
-          v-model="password"
-          class="form-control" 
-          required 
-        />
+        <input type="password" id="password" v-model="password" class="form-control" required />
       </div>
 
       <button type="submit" class="btn btn-primary">Login</button>
+      
+      <p class="mt-3">
+        Don't have an account? 
+        <RouterLink to="/register">Sign up here</RouterLink>
+      </p>
     </form>
   </div>
 </template>
 
 <style scoped>
-/* Simple styles for centering and appearance */
+/* You can keep your existing styles */
 .login-container {
   max-width: 400px;
   margin: 50px auto;
