@@ -30,9 +30,14 @@ const authStore = useAuthStore();
               </li>
             </template>
             <template v-else>
-               <li class="nav-item">
+              <li class="nav-item">
                 <RouterLink class="nav-link" to="/profile">
                   Profile ({{ authStore.currentUser.email }})
+                </RouterLink>
+              </li>
+              <li class="nav-item" v-if="authStore.currentUser.role === 'coach'">
+                <RouterLink class="nav-link" to="/coach-dashboard">
+                  Coach Dashboard
                 </RouterLink>
               </li>
               <li class="nav-item">

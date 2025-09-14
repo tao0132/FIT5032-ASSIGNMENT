@@ -18,16 +18,20 @@ export const useAuthStore = defineStore('auth', () => {
       throw new Error('User already exists');
     }
     
+    // Determine the role based on the email address.
+    // This is a simple rule for demonstration purposes.
+    const userRole = email.includes('coach') ? 'coach' : 'user';
+
     const newUser = {
-      id: Date.now(), // Simple unique ID
+      id: Date.now(),
       email,
-      password, // In a real app, this should be hashed
-      role: 'user' // Default role
+      password,
+      role: userRole // Assign the determined role
     };
 
     users.push(newUser);
     saveUsers();
-    login(email, password); // Automatically log in after registration
+    login(email, password);
   }
 
   function login(email, password) {
