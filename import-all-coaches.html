@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Import All 13 Coaches to Firestore</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .danger { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .success-btn { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        #status {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+        .success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        .info-box {
+            background: #e7f3ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #1976D2;
+        }
+        .coach-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .coach-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Deploy Coaches to Firestore</h1>
+        <p class="subtitle">Complete Coach Database with Melbourne Locations</p>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number">13</div>
+                <div class="stat-label">Total Coaches</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">10</div>
+                <div class="stat-label">New Coaches</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">13</div>
+                <div class="stat-label">Melbourne Locations</div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <h3>📋 What's Being Imported:</h3>
+            <div class="coach-list">
+                <div class="coach-item">👩‍🏫 Jane Doe - Strength Training</div>
+                <div class="coach-item">🧘 Sarah Smith - Yoga</div>
+                <div class="coach-item">🏃 Emily Jones - Cardio</div>
+                <div class="coach-item">🤸 Michelle Chen - Pilates</div>
+                <div class="coach-item">🥊 Alexandra Rodriguez - HIIT/Boxing</div>
+                <div class="coach-item">💃 Olivia Martinez - Dance Fitness</div>
+                <div class="coach-item">👶 Rebecca Taylor - Pre/Postnatal</div>
+                <div class="coach-item">🏋️ Jessica Kim - CrossFit</div>
+                <div class="coach-item">🩰 Amanda Williams - Barre</div>
+                <div class="coach-item">🏊 Sophie Anderson - Swimming</div>
+                <div class="coach-item">🧘‍♀️ Natalie Brown - Mindfulness</div>
+                <div class="coach-item">🚴 Victoria Lee - Spin</div>
+                <div class="coach-item">💪 Isabella Garcia - Personal Training</div>
+            </div>
+            <p><strong>All coaches include:</strong></p>
+            <ul>
+                <li>✅ Real Melbourne fitness center locations</li>
+                <li>✅ GPS coordinates for map display</li>
+                <li>✅ Specializations and bio</li>
+                <li>✅ Ratings data</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <button onclick="importAllCoaches()">📥 Import All 13 Coaches</button>
+            <button class="success-btn" onclick="viewCoaches()">👀 View Current Data</button>
+            <button class="danger" onclick="clearAllCoaches()">🗑️ Clear All Coaches</button>
+        </div>
+
+        <div id="status">Ready to import. Click a button to start...</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB1Ipz08DVkqYqKxCbintGigABn82xHqIc",
+            authDomain: "fit5032-nfp-wellness-e219a.firebaseapp.com",
+            projectId: "fit5032-nfp-wellness-e219a",
+            storageBucket: "fit5032-nfp-wellness-e219a.firebasestorage.app",
+            messagingSenderId: "878056680267",
+            appId: "1:878056680267:web:f2496c765f6cabf44256ce",
+            measurementId: "G-XKHWZTXDS1"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // All 13 coaches data with Melbourne locations
+        const coaches = [
+            {
+                id: 'coach-1',
+                name: 'Jane Doe',
+                specializations: ['Strength Training', 'Weight Management'],
+                bio: 'A passionate coach dedicated to helping women find their strength and confidence through fitness.',
+                photo: 'https://placehold.co/600x400/EFEFEF/333?text=Jane+D.',
+                ratings: [5, 4, 5, 5, 4],
+                location: {
+                    latitude: -37.8136,
+                    longitude: 144.9631,
+                    address: 'Fitness First Melbourne CBD, 200 Bourke St, Melbourne VIC 3000'
+                }
+            },
+            {
+                id: 'coach-2',
+                name: 'Sarah Smith',
+                specializations: ['Yoga', 'Rehabilitation', 'Wellbeing'],
+                bio: 'With a focus on mindful movement, Sarah helps clients connect their mind and body for long-term health.',
+                photo: 'https://placehold.co/600x400/EFEFEF/333?text=Sarah+S.',
+                ratings: [5, 5, 4, 5],
+                location: {
+                    latitude: -37.8210,
+                    longitude: 144.9560,
+                    address: 'Yoga Republic, 380 Little Bourke St, Melbourne VIC 3000'
+                }
+            },
+            {
+                id: 'coach-3',
+                name: 'Emily Jones',
+                specializations: ['Cardio', 'Group Fitness'],
+                bio: 'High-energy and motivating, Emily makes cardio fun and accessible for all fitness levels.',
+                photo: 'https://placehold.co/600x400/EFEFEF/333?text=Emily+J.',
+                ratings: [4, 5, 4],
+                location: {
+                    latitude: -37.8080,
+                    longitude: 144.9550,
+                    address: 'F45 Training Melbourne Central, 211 La Trobe St, Melbourne VIC 3000'
+                }
+            },
+            {
+                id: 'coach-4',
+                name: 'Michelle Chen',
+                specializations: ['Pilates', 'Core Strength', 'Flexibility'],
+                bio: 'Certified Pilates instructor with 8 years of experience. Michelle specializes in improving posture and core stability.',
+                photo: 'https://placehold.co/600x400/E8F5E9/333?text=Michelle+C.',
+                ratings: [5, 5, 5, 4, 5],
+                location: {
+                    latitude: -37.8183,
+                    longitude: 144.9671,
+                    address: 'KX Pilates South Yarra, 163 Toorak Rd, South Yarra VIC 3141'
+                }
+            },
+            {
+                id: 'coach-5',
+                name: 'Alexandra Rodriguez',
+                specializations: ['HIIT', 'Boxing', 'Athletic Performance'],
+                bio: 'Former professional athlete turned fitness coach. Alex brings high-intensity workouts that deliver real results.',
+                photo: 'https://placehold.co/600x400/FFF3E0/333?text=Alex+R.',
+                ratings: [5, 4, 5, 5],
+                location: {
+                    latitude: -37.7964,
+                    longitude: 144.9612,
+                    address: '12 Round Fitness Carlton, 195 Elgin St, Carlton VIC 3053'
+                }
+            },
+            {
+                id: 'coach-6',
+                name: 'Olivia Martinez',
+                specializations: ['Dance Fitness', 'Zumba', 'Cardio'],
+                bio: 'Dance your way to fitness! Olivia combines fun dance routines with effective cardio workouts.',
+                photo: 'https://placehold.co/600x400/FCE4EC/333?text=Olivia+M.',
+                ratings: [5, 5, 4, 5, 5],
+                location: {
+                    latitude: -37.8285,
+                    longitude: 144.9731,
+                    address: 'Virgin Active St Kilda Road, 181 St Kilda Rd, Melbourne VIC 3004'
+                }
+            },
+            {
+                id: 'coach-7',
+                name: 'Rebecca Taylor',
+                specializations: ['Pre/Postnatal Fitness', 'Wellness Coaching'],
+                bio: 'Specializing in safe and effective fitness programs for expecting and new mothers. Rebecca\'s holistic approach supports your journey.',
+                photo: 'https://placehold.co/600x400/F3E5F5/333?text=Rebecca+T.',
+                ratings: [5, 5, 5, 5],
+                location: {
+                    latitude: -37.8324,
+                    longitude: 144.9820,
+                    address: 'Goodlife Health Clubs South Melbourne, 275 Clarendon St, South Melbourne VIC 3205'
+                }
+            },
+            {
+                id: 'coach-8',
+                name: 'Jessica Kim',
+                specializations: ['CrossFit', 'Functional Training', 'Nutrition'],
+                bio: 'CrossFit Level 2 trainer and nutrition coach. Jessica helps you build strength, endurance, and healthy eating habits.',
+                photo: 'https://placehold.co/600x400/E1F5FE/333?text=Jessica+K.',
+                ratings: [5, 4, 5, 4, 5],
+                location: {
+                    latitude: -37.8456,
+                    longitude: 144.9890,
+                    address: 'CrossFit South Melbourne, 2 Park St, South Melbourne VIC 3205'
+                }
+            },
+            {
+                id: 'coach-9',
+                name: 'Amanda Williams',
+                specializations: ['Barre', 'Ballet Fitness', 'Toning'],
+                bio: 'Trained dancer bringing ballet-inspired workouts to improve grace, flexibility, and muscle tone.',
+                photo: 'https://placehold.co/600x400/FFF9C4/333?text=Amanda+W.',
+                ratings: [5, 5, 5, 4],
+                location: {
+                    latitude: -37.8118,
+                    longitude: 144.9753,
+                    address: 'Xtend Barre Fitzroy, 168 Gertrude St, Fitzroy VIC 3065'
+                }
+            },
+            {
+                id: 'coach-10',
+                name: 'Sophie Anderson',
+                specializations: ['Swimming', 'Aqua Fitness', 'Triathlon Coaching'],
+                bio: 'Competitive swimmer and triathlon coach. Sophie offers specialized aquatic fitness programs for all levels.',
+                photo: 'https://placehold.co/600x400/E0F2F1/333?text=Sophie+A.',
+                ratings: [5, 5, 4, 5],
+                location: {
+                    latitude: -37.8020,
+                    longitude: 144.9820,
+                    address: 'Melbourne City Baths, 420 Swanston St, Melbourne VIC 3000'
+                }
+            },
+            {
+                id: 'coach-11',
+                name: 'Natalie Brown',
+                specializations: ['Mindfulness', 'Meditation', 'Stress Management'],
+                bio: 'Certified mindfulness coach helping women find balance through meditation and stress-relief techniques.',
+                photo: 'https://placehold.co/600x400/EDE7F6/333?text=Natalie+B.',
+                ratings: [5, 5, 5, 5, 5],
+                location: {
+                    latitude: -37.8190,
+                    longitude: 144.9520,
+                    address: 'Humming Puppy Yoga, 33 Cardigan Pl, Melbourne VIC 3000'
+                }
+            },
+            {
+                id: 'coach-12',
+                name: 'Victoria Lee',
+                specializations: ['Spin', 'Cycling', 'Endurance Training'],
+                bio: 'Indoor cycling expert with infectious energy. Victoria\'s spin classes will push you to new limits.',
+                photo: 'https://placehold.co/600x400/FFEBEE/333?text=Victoria+L.',
+                ratings: [4, 5, 5, 4, 5],
+                location: {
+                    latitude: -37.8156,
+                    longitude: 144.9590,
+                    address: 'Cycology Melbourne, 567 Little Bourke St, Melbourne VIC 3000'
+                }
+            },
+            {
+                id: 'coach-13',
+                name: 'Isabella Garcia',
+                specializations: ['Personal Training', 'Body Transformation', 'Motivation'],
+                bio: 'Award-winning personal trainer specialized in complete body transformations. Isabella\'s personalized approach gets results.',
+                photo: 'https://placehold.co/600x400/FBE9E7/333?text=Isabella+G.',
+                ratings: [5, 5, 5, 5, 4],
+                location: {
+                    latitude: -37.8240,
+                    longitude: 144.9680,
+                    address: 'Anytime Fitness Southbank, 101 Clarendon St, Southbank VIC 3006'
+                }
+            }
+        ];
+
+        window.importAllCoaches = async function() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = '';
+            
+            try {
+                statusDiv.textContent = '⏳ Starting import...\n';
+                statusDiv.textContent += `📝 Project: fit5032-nfp-wellness-e219a\n`;
+                statusDiv.textContent += `📁 Collection: coaches\n`;
+                statusDiv.textContent += `📊 Total coaches: ${coaches.length}\n\n`;
+                
+                let count = 0;
+                for (const coach of coaches) {
+                    statusDiv.textContent += `⏳ Importing ${coach.name}...\n`;
+                    statusDiv.textContent += `   📍 Location: ${coach.location.address}\n`;
+                    
+                    await setDoc(doc(db, "coaches", coach.id), coach);
+                    
+                    statusDiv.textContent += `✅ ${coach.name} imported! (ID: ${coach.id})\n\n`;
+                    count++;
+                }
+                
+                statusDiv.textContent += '\n━━━━━━━━━━━━━━━━━━━━━━\n';
+                statusDiv.textContent += `🎉 SUCCESS! Imported ${count}/${coaches.length} coaches\n\n`;
+                statusDiv.textContent += 'Next steps:\n';
+                statusDiv.textContent += '1. Visit: http://localhost:5174/map\n';
+                statusDiv.textContent += '2. You should see all 13 coach markers!\n';
+                statusDiv.textContent += '3. Click markers to see locations\n';
+                statusDiv.textContent += '4. Try "Get Directions" feature!\n';
+                statusDiv.className = 'success';
+                
+            } catch (error) {
+                statusDiv.textContent = `❌ Import failed!\n\n`;
+                statusDiv.textContent += `Error: ${error.message}\n`;
+                statusDiv.textContent += `Code: ${error.code || 'N/A'}\n\n`;
+                statusDiv.className = 'error';
+                console.error('Import error:', error);
+            }
+        };
+
+        window.viewCoaches = async function() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = '';
+            
+            try {
+                statusDiv.textContent = '⏳ Loading from Firestore...\n\n';
+                
+                const snapshot = await getDocs(collection(db, "coaches"));
+                
+                if (snapshot.empty) {
+                    statusDiv.textContent = '📭 NO COACHES FOUND\n\n';
+                    statusDiv.textContent += 'Click "Import All 13 Coaches" to add data.';
+                    statusDiv.className = 'warning';
+                    return;
+                }
+                
+                statusDiv.textContent = `📊 Found ${snapshot.size} coach(es):\n\n`;
+                
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    statusDiv.textContent += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+                    statusDiv.textContent += `ID: ${docSnap.id}\n`;
+                    statusDiv.textContent += `Name: ${data.name}\n`;
+                    statusDiv.textContent += `Specializations: ${data.specializations?.join(', ')}\n`;
+                    statusDiv.textContent += `Ratings: [${data.ratings?.join(', ')}] (Avg: ${(data.ratings.reduce((a,b)=>a+b,0)/data.ratings.length).toFixed(1)})\n`;
+                    if (data.location) {
+                        statusDiv.textContent += `📍 Location: ${data.location.address}\n`;
+                        statusDiv.textContent += `   GPS: ${data.location.latitude}, ${data.location.longitude}\n`;
+                    }
+                    statusDiv.textContent += `\n`;
+                });
+                
+                statusDiv.textContent += '✅ All coaches loaded!\n';
+                statusDiv.className = 'success';
+                
+            } catch (error) {
+                statusDiv.textContent = `❌ Failed to load!\n\n${error.message}`;
+                statusDiv.className = 'error';
+                console.error(error);
+            }
+        };
+
+        window.clearAllCoaches = async function() {
+            if (!confirm('⚠️ Delete all coaches? This cannot be undone!')) {
+                return;
+            }
+            
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = '';
+            
+            try {
+                statusDiv.textContent = '⏳ Deleting all coaches...\n';
+                
+                const snapshot = await getDocs(collection(db, "coaches"));
+                
+                for (const docSnap of snapshot.docs) {
+                    await deleteDoc(docSnap.ref);
+                    statusDiv.textContent += `🗑️ Deleted: ${docSnap.id}\n`;
+                }
+                
+                statusDiv.textContent += `\n✅ Deleted ${snapshot.size} coach(es)`;
+                statusDiv.className = 'warning';
+                
+            } catch (error) {
+                statusDiv.textContent = `❌ Delete failed!\n\n${error.message}`;
+                statusDiv.className = 'error';
+                console.error(error);
+            }
+        };
+    </script>
+</body>
+</html>
+
