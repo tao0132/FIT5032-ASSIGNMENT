@@ -39,13 +39,10 @@ function calculateAverage(ratings) {
 async function fetchCoaches() {
   const coachesCollection = collection(db, 'coaches');
   try {
-    console.log('🔍 正在从Firestore读取coaches集合...');
     const snapshot = await getDocs(coachesCollection);
-    console.log(`📊 找到 ${snapshot.size} 个教练文档`);
     
     coaches.value = snapshot.docs.map(doc => {
       const data = doc.data();
-      console.log('教练数据:', doc.id, data);
       return {
         id: doc.id,
         name: data.name || 'N/A',
@@ -55,11 +52,10 @@ async function fetchCoaches() {
       }
     });
     
-    console.log('✅ 教练数据加载成功:', coaches.value);
   } catch (error) {
-    console.error("❌ Error fetching coaches:", error);
-    errorMessage.value = `加载失败: ${error.message}`;
-    alert(`读取教练数据失败！\n错误: ${error.message}\n请打开控制台(F12)查看详细信息`);
+    console.error("Error fetching coaches:", error);
+    errorMessage.value = `Loading failed: ${error.message}`;
+    alert(`Failed to load coaches data!\nError: ${error.message}\nPlease open console (F12) for more details`);
   } finally {
     isLoading.value = false;
   }
@@ -74,17 +70,17 @@ onMounted(fetchCoaches);
 
     <!-- Error Message -->
     <div v-if="errorMessage" class="alert alert-danger" role="alert">
-      <strong>❌ 错误：</strong> {{ errorMessage }}
+      <strong>❌ Error:</strong> {{ errorMessage }}
     </div>
 
     <!-- Debug Info -->
     <div v-if="!isLoading && coaches.length === 0 && !errorMessage" class="alert alert-warning" role="alert">
-      <strong>⚠️ 没有找到教练数据</strong>
-      <p>Firestore的 'coaches' 集合为空。请检查：</p>
+      <strong>⚠️ No Coaches Found</strong>
+      <p>The 'coaches' collection in Firestore is empty. Please check:</p>
       <ol>
-        <li>是否已导入教练数据？访问 <code>import-coaches-correct.html</code></li>
-        <li>打开浏览器控制台(F12)查看详细日志</li>
-        <li>检查Firestore规则是否允许读取</li>
+        <li>Have you imported the coaches data? Visit <code>import-coaches-with-working-hours.html</code></li>
+        <li>Open browser console (F12) to view detailed logs</li>
+        <li>Check if Firestore rules allow read access</li>
       </ol>
     </div>
     

@@ -2,6 +2,7 @@
 // file: src/views/MapView.vue
 
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
@@ -9,6 +10,8 @@ import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 
 import { db } from '../firebase/config.js';
 import { collection, getDocs } from 'firebase/firestore';
+
+const route = useRoute();
 
 const mapContainer = ref(null);
 let map = null;
@@ -237,7 +240,8 @@ onMounted(() => {
     container: mapContainer.value,
     style: 'mapbox://styles/mapbox/streets-v12',
     center: [144.9631, -37.8136], // Melbourne default
-    zoom: 13
+    zoom: 13,
+    language: 'en' // Set map language to English
   });
 
   // Add navigation controls (zoom in/out)
@@ -258,7 +262,8 @@ onMounted(() => {
     accessToken: mapboxgl.accessToken,
     mapboxgl: mapboxgl,
     marker: false,
-    placeholder: 'Search for places...'
+    placeholder: 'Search for places...',
+    language: 'en' // Set language to English
   });
 
   // Add geocoder control to the map
@@ -272,6 +277,58 @@ onMounted(() => {
     
     // Automatically try to get user location
     getUserLocation();
+    
+    // Check if navigating to a specific coach location from query params
+    if (route.query.coachLat && route.query.coachLng) {
+      const coachLat = parseFloat(route.query.coachLat);
+      const coachLng = parseFloat(route.query.coachLng);
+      const coachName = route.query.coachName || 'Coach';
+      const coachAddress = route.query.coachAddress || '';
+      
+      // Wait a bit for user location to load, then navigate
+      setTimeout(() => {
+        // Center map on coach location
+        map.flyTo({
+          center: [coachLng, coachLat],
+          zoom: 15,
+          duration: 2000
+        });
+        
+        // Add a highlight marker for the target coach
+        const el = document.createElement('div');
+        el.innerHTML = '📍';
+        el.style.fontSize = '40px';
+        el.style.animation = 'pulse 2s infinite';
+        
+        new mapboxgl.Marker(el)
+          .setLngLat([coachLng, coachLat])
+          .setPopup(
+            new mapboxgl.Popup({ offset: 25 })
+              .setHTML(`
+                <div style="min-width: 200px;">
+                  <h3 style="color: #0d6efd; margin-bottom: 10px;">${coachName}</h3>
+                  <p style="margin-bottom: 8px;"><strong>📍 Address:</strong><br>${coachAddress}</p>
+                  <button 
+                    onclick="window.getDirectionsToCoach(${coachLng}, ${coachLat}, '${coachName}')"
+                    class="btn btn-primary btn-sm"
+                    style="width: 100%; margin-top: 10px;"
+                  >
+                    🧭 Get Directions
+                  </button>
+                </div>
+              `)
+          )
+          .addTo(map)
+          .togglePopup(); // Open popup automatically
+        
+        // Automatically get directions if user location is available
+        setTimeout(() => {
+          if (userLocation.value) {
+            getDirections(coachLng, coachLat, coachName);
+          }
+        }, 1500);
+      }, 1000);
+    }
   });
 });
 
@@ -300,15 +357,6 @@ onUnmounted(() => {
           <strong>Your Location:</strong><br>
           Lat: {{ userLocation.lat.toFixed(4) }}<br>
           Lng: {{ userLocation.lng.toFixed(4) }}
-        </small>
-      </div>
-      <div class="info-box mt-3">
-        <small>
-          <strong>Features:</strong><br>
-          ✓ Search places<br>
-          ✓ View distances<br>
-          ✓ Get directions<br>
-          ✓ Real-time navigation
         </small>
       </div>
     </div>

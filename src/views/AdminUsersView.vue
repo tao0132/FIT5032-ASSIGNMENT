@@ -29,13 +29,10 @@ const errorMessage = ref('');
 async function fetchUsers() {
   const usersCollection = collection(db, 'users');
   try {
-    console.log('🔍 正在从Firestore读取users集合...');
     const snapshot = await getDocs(usersCollection);
-    console.log(`📊 找到 ${snapshot.size} 个用户文档`);
     
     users.value = snapshot.docs.map(doc => {
       const data = doc.data();
-      console.log('用户数据:', doc.id, data);
       return {
         id: doc.id,
         email: data.email || 'N/A',
@@ -43,12 +40,10 @@ async function fetchUsers() {
         createdAt: data.createdAt ? data.createdAt.toDate().toLocaleDateString() : 'N/A'
       }
     });
-    
-    console.log('✅ 用户数据加载成功:', users.value);
   } catch (error) {
-    console.error("❌ Error fetching users:", error);
-    errorMessage.value = `加载失败: ${error.message}`;
-    alert(`读取用户数据失败！\n错误: ${error.message}\n请打开控制台(F12)查看详细信息`);
+    console.error("Error fetching users:", error);
+    errorMessage.value = `Loading failed: ${error.message}`;
+    alert(`Failed to load users data!\nError: ${error.message}\nPlease open console (F12) for more details`);
   } finally {
     isLoading.value = false;
   }
@@ -92,17 +87,17 @@ function exportToCSV() {
 
     <!-- Error Message -->
     <div v-if="errorMessage" class="alert alert-danger" role="alert">
-      <strong>❌ 错误：</strong> {{ errorMessage }}
+      <strong>❌ Error:</strong> {{ errorMessage }}
     </div>
 
     <!-- Debug Info -->
     <div v-if="!isLoading && users.length === 0 && !errorMessage" class="alert alert-warning" role="alert">
-      <strong>⚠️ 没有找到用户数据</strong>
-      <p>Firestore的 'users' 集合为空。请检查：</p>
+      <strong>⚠️ No Users Found</strong>
+      <p>The 'users' collection in Firestore is empty. Please check:</p>
       <ol>
-        <li>是否已注册用户账户？</li>
-        <li>打开浏览器控制台(F12)查看详细日志</li>
-        <li>检查Firestore规则是否允许读取</li>
+        <li>Have any users registered accounts?</li>
+        <li>Open browser console (F12) to view detailed logs</li>
+        <li>Check if Firestore rules allow read access</li>
       </ol>
     </div>
     

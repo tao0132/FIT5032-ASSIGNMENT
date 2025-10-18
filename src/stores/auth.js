@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 // Import the auth object from our firebase config
 import { auth } from '../firebase/config.js';
 import { db } from '../firebase/config.js';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 // Import Firebase auth functions
 import { 
   createUserWithEmailAndPassword, 
@@ -31,11 +31,20 @@ export const useAuthStore = defineStore('auth', () => {
       const userDoc = await getDoc(userDocRef);
       
       let userRole = 'user'; // default role
+      let coachId = null;
+      
       if (userDoc.exists()) {
-        userRole = userDoc.data().role || 'user';
+        const userData = userDoc.data();
+        userRole = userData.role || 'user';
+        coachId = userData.coachId || null;
       }
       
-      currentUser.value = { email: user.email, uid: user.uid, role: userRole };
+      currentUser.value = { 
+        email: user.email, 
+        uid: user.uid, 
+        role: userRole,
+        coachId: coachId
+      };
     } else {
       // User is signed out.
       currentUser.value = null;
@@ -54,10 +63,40 @@ export const useAuthStore = defineStore('auth', () => {
       // --- ADD THIS NEW PART ---
       // Create a user document in Firestore
       const userRole = email.includes('coach') ? 'coach' : 'user';
+      let coachId = null;
+      
+      // If user is a coach, try to find matching coach in coaches collection
+      if (userRole === 'coach') {
+        try {
+          const coachesRef = collection(db, 'coaches');
+          const coachQuery = query(coachesRef, where('name', '==', email.split('@')[0].replace('.', ' ')));
+          const coachSnapshot = await getDocs(coachQuery);
+          
+          // Also try to find by email matching coach name (case-insensitive)
+          if (coachSnapshot.empty) {
+            const allCoachesSnapshot = await getDocs(coachesRef);
+            allCoachesSnapshot.forEach((doc) => {
+              const coachData = doc.data();
+              const coachNameLower = coachData.name.toLowerCase().replace(/\s+/g, '');
+              const emailNameLower = email.split('@')[0].toLowerCase().replace(/\./g, '');
+              
+              if (coachNameLower === emailNameLower) {
+                coachId = doc.id;
+              }
+            });
+          } else {
+            coachId = coachSnapshot.docs[0].id;
+          }
+        } catch (error) {
+          console.error('Error finding coach:', error);
+        }
+      }
+      
       const userDocRef = doc(db, "users", userCredential.user.uid); // Use auth UID as document ID   
       await setDoc(userDocRef, {
         email: email,
         role: userRole,
+        coachId: coachId,
         createdAt: new Date() // Add a creation timestamp
       });
       
@@ -82,7 +121,12 @@ export const useAuthStore = defineStore('auth', () => {
       }
       // --- END OF NEW PART ---
 
-      currentUser.value = { email: userCredential.user.email, uid: userCredential.user.uid, role: userRole };
+      currentUser.value = { 
+        email: userCredential.user.email, 
+        uid: userCredential.user.uid, 
+        role: userRole,
+        coachId: coachId
+      };
 
     } catch (error) {
       console.error( error);
@@ -103,14 +147,19 @@ export const useAuthStore = defineStore('auth', () => {
       const userDoc = await getDoc(userDocRef);
       
       let userRole = 'user'; // default role
+      let coachId = null;
+      
       if (userDoc.exists()) {
-        userRole = userDoc.data().role || 'user';
+        const userData = userDoc.data();
+        userRole = userData.role || 'user';
+        coachId = userData.coachId || null;
       }
       
       currentUser.value = { 
         email: userCredential.user.email, 
         uid: userCredential.user.uid,
-        role: userRole 
+        role: userRole,
+        coachId: coachId
       };
     } catch (error) {
       // Provide a more user-friendly error message

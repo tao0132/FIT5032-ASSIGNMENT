@@ -1,14 +1,334 @@
 <script setup>
-// This page is for demonstration of role-based access.
+import { ref, onMounted, computed } from 'vue';
+import { useAuthStore } from '../stores/auth.js';
+import { db } from '../firebase/config.js';
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+const authStore = useAuthStore();
+const bookings = ref([]);
+const isLoadingBookings = ref(true);
+const coachInfo = ref(null);
+
+// Filter bookings by status
+const pendingBookings = computed(() => 
+  bookings.value.filter(b => b.status === 'pending')
+);
+const confirmedBookings = computed(() => 
+  bookings.value.filter(b => b.status === 'confirmed')
+);
+const allBookings = computed(() => bookings.value);
+
+async function fetchCoachBookings() {
+  if (!authStore.currentUser || !authStore.currentUser.coachId) {
+    isLoadingBookings.value = false;
+    return;
+  }
+
+  try {
+    const bookingsQuery = query(
+      collection(db, 'bookings'),
+      where('coachId', '==', authStore.currentUser.coachId)
+    );
+    
+    const querySnapshot = await getDocs(bookingsQuery);
+    bookings.value = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    // Sort by createdAt (newest first)
+    bookings.value.sort((a, b) => {
+      if (!a.createdAt || !b.createdAt) return 0;
+      return b.createdAt.seconds - a.createdAt.seconds;
+    });
+    
+    // Also fetch coach info
+    if (authStore.currentUser.coachId) {
+      const coachDoc = await getDocs(query(
+        collection(db, 'coaches'),
+        where('__name__', '==', authStore.currentUser.coachId)
+      ));
+      if (!coachDoc.empty) {
+        coachInfo.value = coachDoc.docs[0].data();
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    alert('Failed to load bookings. Please refresh the page.');
+  } finally {
+    isLoadingBookings.value = false;
+  }
+}
+
+async function confirmBooking(bookingId) {
+  try {
+    await updateDoc(doc(db, 'bookings', bookingId), {
+      status: 'confirmed'
+    });
+    
+    // Update local state
+    const booking = bookings.value.find(b => b.id === bookingId);
+    if (booking) {
+      booking.status = 'confirmed';
+    }
+    
+    alert('Booking confirmed successfully!');
+  } catch (error) {
+    console.error('Error confirming booking:', error);
+    alert('Failed to confirm booking. Please try again.');
+  }
+}
+
+async function cancelBooking(bookingId) {
+  if (!confirm('Are you sure you want to cancel this booking?')) {
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(db, 'bookings', bookingId));
+    
+    // Remove from local array
+    bookings.value = bookings.value.filter(b => b.id !== bookingId);
+    
+    alert('Booking cancelled successfully!');
+  } catch (error) {
+    console.error('Error cancelling booking:', error);
+    alert('Failed to cancel booking. Please try again.');
+  }
+}
+
+function getStatusBadgeClass(status) {
+  switch(status) {
+    case 'confirmed': return 'bg-success';
+    case 'pending': return 'bg-warning text-dark';
+    case 'cancelled': return 'bg-danger';
+    default: return 'bg-secondary';
+  }
+}
+
+function exportToPDF() {
+  try {
+    if (bookings.value.length === 0) {
+      alert('No bookings to export.');
+      return;
+    }
+
+    console.log('Starting Coach PDF export...', bookings.value.length, 'bookings');
+
+    // Create new PDF document
+    const doc = new jsPDF();
+    
+    const coachName = coachInfo.value?.name || 'Coach';
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text(`${coachName} - Bookings Report`, 14, 20);
+    
+    // Add coach info
+    doc.setFontSize(11);
+    doc.text(`Coach: ${coachName}`, 14, 30);
+    doc.text(`Email: ${authStore.currentUser.email}`, 14, 37);
+    doc.text(`Export Date: ${new Date().toLocaleDateString()}`, 14, 44);
+    
+    // Statistics
+    doc.text(`Total Bookings: ${bookings.value.length}`, 14, 51);
+    doc.text(`Pending: ${pendingBookings.value.length} | Confirmed: ${confirmedBookings.value.length}`, 14, 58);
+    
+    // Prepare table data
+    const tableData = bookings.value.map(booking => [
+      booking.userEmail || 'N/A',
+      booking.date || 'N/A',
+      booking.time || 'N/A',
+      (booking.status || 'pending').toUpperCase(),
+      (booking.notes || 'N/A').substring(0, 30)
+    ]);
+    
+    console.log('Table data prepared:', tableData);
+    
+    // Add table using autoTable
+    autoTable(doc, {
+      head: [['User Email', 'Date', 'Time', 'Status', 'Notes']],
+      body: tableData,
+      startY: 65,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [13, 110, 253], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      columnStyles: {
+        0: { cellWidth: 50 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 45 }
+      }
+    });
+    
+    // Add footer
+    const finalY = doc.lastAutoTable.finalY || 65;
+    doc.setFontSize(8);
+    doc.setTextColor(128);
+    doc.text('Generated by NFP Wellness Coach Dashboard', 14, finalY + 15);
+    
+    console.log('Saving Coach PDF...');
+    
+    // Save PDF
+    doc.save(`${coachName.replace(/\s+/g, '_')}_bookings_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    console.log('Coach PDF exported successfully!');
+  } catch (error) {
+    console.error('Error exporting Coach PDF:', error);
+    alert(`Failed to export PDF: ${error.message}`);
+  }
+}
+
+onMounted(() => {
+  fetchCoachBookings();
+});
 </script>
 
 <template>
   <div class="container mt-5">
-    <h1>Coach Dashboard</h1>
-    <p>Welcome, coach! This page is only visible to users with the 'coach' role.</p>
+    <div v-if="!authStore.currentUser?.coachId" class="alert alert-warning">
+      <h4>⚠️ Coach Profile Not Linked</h4>
+      <p>Your account is not linked to a coach profile. Please contact support or register with an email matching your coach name.</p>
+      <p class="mb-0"><strong>Example:</strong> jane.doe@example.com for coach "Jane Doe"</p>
     </div>
+
+    <div v-else>
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1>🏋️ Coach Dashboard</h1>
+          <p class="text-muted">Welcome, {{ authStore.currentUser.email }}</p>
+          <p v-if="coachInfo" class="text-primary"><strong>{{ coachInfo.name }}</strong></p>
+        </div>
+        <button @click="authStore.logout()" class="btn btn-danger">Logout</button>
+      </div>
+
+      <!-- Stats Summary -->
+      <div class="row mb-4">
+        <div class="col-md-4">
+          <div class="card text-center border-warning">
+            <div class="card-body">
+              <h3 class="text-warning">{{ pendingBookings.length }}</h3>
+              <p class="mb-0">Pending Bookings</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card text-center border-success">
+            <div class="card-body">
+              <h3 class="text-success">{{ confirmedBookings.length }}</h3>
+              <p class="mb-0">Confirmed Bookings</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card text-center border-primary">
+            <div class="card-body">
+              <h3 class="text-primary">{{ allBookings.length }}</h3>
+              <p class="mb-0">Total Bookings</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bookings Table -->
+      <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h4 class="mb-0">📅 My Bookings</h4>
+          <button 
+            @click="exportToPDF" 
+            class="btn btn-light btn-sm"
+            :disabled="bookings.length === 0"
+          >
+            📄 Export to PDF
+          </button>
+        </div>
+        <div class="card-body">
+          <div v-if="isLoadingBookings" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading your bookings...</p>
+          </div>
+
+          <div v-else-if="bookings.length === 0" class="text-center py-5">
+            <h5>📭 No Bookings Yet</h5>
+            <p class="text-muted">You don't have any bookings at the moment.</p>
+          </div>
+
+          <div v-else>
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="booking in bookings" :key="booking.id">
+                    <td>
+                      <strong>{{ booking.userEmail }}</strong>
+                    </td>
+                    <td>{{ booking.date }}</td>
+                    <td>{{ booking.time }}</td>
+                    <td>
+                      <span 
+                        class="badge" 
+                        :class="getStatusBadgeClass(booking.status)"
+                      >
+                        {{ booking.status }}
+                      </span>
+                    </td>
+                    <td>
+                      <span v-if="booking.notes" class="text-muted">
+                        {{ booking.notes.substring(0, 30) }}{{ booking.notes.length > 30 ? '...' : '' }}
+                      </span>
+                      <span v-else class="text-muted fst-italic">No notes</span>
+                    </td>
+                    <td>
+                      <button 
+                        v-if="booking.status === 'pending'"
+                        @click="confirmBooking(booking.id)"
+                        class="btn btn-sm btn-success me-1"
+                      >
+                        ✓ Confirm
+                      </button>
+                      <button 
+                        @click="cancelBooking(booking.id)"
+                        class="btn btn-sm btn-outline-danger"
+                      >
+                        ✕ Cancel
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-/* Add styles as needed */
+.card {
+  margin-bottom: 20px;
+}
+
+.table th {
+  background-color: #f8f9fa;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
 </style>
