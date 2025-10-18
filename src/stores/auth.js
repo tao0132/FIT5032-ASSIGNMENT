@@ -9,9 +9,7 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup
+  onAuthStateChanged
 } from 'firebase/auth';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -188,111 +186,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /**
-   * Logs in with Google using popup
-   */
-  async function loginWithGoogle() {
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      // Check if user document exists in Firestore
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-      
-      let userRole = 'user'; // default role
-      let coachId = null;
-      
-      if (userDoc.exists()) {
-        // Existing user - fetch their role
-        const userData = userDoc.data();
-        userRole = userData.role || 'user';
-        coachId = userData.coachId || null;
-      } else {
-        // New user - create user document
-        userRole = user.email.includes('coach') ? 'coach' : 'user';
-        
-        // If user is a coach, try to find matching coach in coaches collection
-        if (userRole === 'coach') {
-          try {
-            const coachesRef = collection(db, 'coaches');
-            const allCoachesSnapshot = await getDocs(coachesRef);
-            
-            // Try to match by email or name
-            const emailNameLower = user.email.split('@')[0].toLowerCase().replace(/\./g, '');
-            const displayNameLower = user.displayName ? user.displayName.toLowerCase().replace(/\s+/g, '') : '';
-            
-            allCoachesSnapshot.forEach((doc) => {
-              const coachData = doc.data();
-              const coachNameLower = coachData.name.toLowerCase().replace(/\s+/g, '');
-              
-              if (coachNameLower === emailNameLower || coachNameLower === displayNameLower) {
-                coachId = doc.id;
-              }
-            });
-          } catch (error) {
-            console.error('Error finding coach:', error);
-          }
-        }
-        
-        // Create user document
-        await setDoc(userDocRef, {
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          role: userRole,
-          coachId: coachId,
-          createdAt: new Date(),
-          authProvider: 'google'
-        });
-        
-        // Send welcome email for new users
-        try {
-          const response = await fetch('https://australia-southeast2-fit5032-nfp-wellness-e219a.cloudfunctions.net/sendWelcomeEmailHttp', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: user.email })
-          });
-          
-          const emailResult = await response.json();
-          if (emailResult.success) {
-            console.log('Welcome email sent successfully');
-          }
-        } catch (emailError) {
-          console.log('Failed to send welcome email:', emailError.message);
-        }
-      }
-      
-      currentUser.value = { 
-        email: user.email,
-        uid: user.uid,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        role: userRole,
-        coachId: coachId
-      };
-      
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
-      
-      // Handle specific errors
-      switch (error.code) {
-        case 'auth/popup-closed-by-user':
-          throw new Error('Login cancelled');
-        case 'auth/popup-blocked':
-          throw new Error('Popup blocked by browser. Please allow popups and try again');
-        case 'auth/account-exists-with-different-credential':
-          throw new Error('An account already exists with this email');
-        default:
-          throw new Error('Google login failed. Please try again');
-      }
-    }
-  }
-
   // We no longer need checkLogin, onAuthStateChanged handles it.
 
-  return { currentUser, isLoggedIn, register, login, logout, loginWithGoogle };
+  return { currentUser, isLoggedIn, register, login, logout };
 });
