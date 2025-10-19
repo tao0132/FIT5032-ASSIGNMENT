@@ -14,17 +14,22 @@ setGlobalOptions({
   region: "australia-southeast2",
 });
 
-// Get the SendGrid API key from environment variables
-// To set: firebase functions:config:set sendgrid.api_key="YOUR_API_KEY"
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || "";
-sgMail.setApiKey(SENDGRID_API_KEY);
+// SendGrid API key will be set dynamically in each function that needs it
 
 /**
  * Callable Function - Send custom email (with attachment support)
  * Uses onCall type, automatically handles authentication and CORS
  */
-exports.sendCustomEmail = onCall(async (request) => {
+exports.sendCustomEmail = onCall({secrets: ["SENDGRID_API_KEY"]}, async (request) => {
   console.log("📧 sendCustomEmail called");
+  
+  // Set SendGrid API key from secret
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) {
+    console.error("❌ SENDGRID_API_KEY is not set");
+    throw new Error("Email service is not configured. Please contact administrator.");
+  }
+  sgMail.setApiKey(apiKey);
   
   // Check if user is logged in
   if (!request.auth) {
