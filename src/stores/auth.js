@@ -99,27 +99,6 @@ export const useAuthStore = defineStore('auth', () => {
         coachId: coachId,
         createdAt: new Date() // Add a creation timestamp
       });
-      
-      // send welcome email
-      try {
-        const response = await fetch('https://australia-southeast2-fit5032-nfp-wellness-e219a.cloudfunctions.net/sendWelcomeEmailHttp', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email: email })
-        });
-        
-        const result = await response.json();
-        if (result.success) {
-          console.log('success');
-        } else {
-          console.log( result.error);
-        }
-      } catch (emailError) {
-        console.log( emailError.message);
-      }
-      // --- END OF NEW PART ---
 
       currentUser.value = { 
         email: userCredential.user.email, 
