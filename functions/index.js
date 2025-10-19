@@ -29,7 +29,9 @@ exports.sendCustomEmail = onCall({secrets: ["SENDGRID_API_KEY"]}, async (request
     console.error("❌ SENDGRID_API_KEY is not set");
     throw new Error("Email service is not configured. Please contact administrator.");
   }
-  sgMail.setApiKey(apiKey);
+  // Remove any whitespace, newlines, or carriage returns from the API key
+  const cleanedApiKey = apiKey.trim().replace(/[\r\n]/g, '');
+  sgMail.setApiKey(cleanedApiKey);
   
   // Check if user is logged in
   if (!request.auth) {
