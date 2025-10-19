@@ -31,7 +31,7 @@ async function fetchUsers() {
   try {
     const snapshot = await getDocs(usersCollection);
     
-    users.value = snapshot.docs.map(doc => {
+    const allUsers = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -40,6 +40,20 @@ async function fetchUsers() {
         createdAt: data.createdAt ? data.createdAt.toDate().toLocaleDateString() : 'N/A'
       }
     });
+    
+    // Remove duplicates: keep only unique combinations of email, role, and createdAt
+    const uniqueUsersMap = new Map();
+    allUsers.forEach(user => {
+      // Create a unique key based on email, role, and createdAt
+      const key = `${user.email}|${user.role}|${user.createdAt}`;
+      // Only add if this combination hasn't been seen before
+      if (!uniqueUsersMap.has(key)) {
+        uniqueUsersMap.set(key, user);
+      }
+    });
+    
+    // Convert Map values back to array
+    users.value = Array.from(uniqueUsersMap.values());
   } catch (error) {
     console.error("Error fetching users:", error);
     errorMessage.value = `Loading failed: ${error.message}`;
